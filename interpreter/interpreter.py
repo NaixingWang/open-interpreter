@@ -1077,8 +1077,25 @@ class Interpreter:
               question=args.get("question"),
               category=category_enum,
           )
+          # end the message block
           self.active_block.end()
-          
+
+          if category == "Tessent_Commands":
+            # Open a new code block to display the tessent commands
+            # self.active_block = CodeBlock()
+            # self.active_block.update_by_plain_code("shell", code)
+            # self.active_block.end()
+            if '"content": ' in qa_answer:
+              json_response = json.loads(qa_answer)
+              explanation = json_response.get("content")
+              qa_answer = {}
+              commands = json_response.get("commands")
+              if commands:
+                qa_answer["commands flow"] = commands
+                explanation += f""" The corresponding command flow ```{commands}``` was generated sucessfully by qa_dft function. However, we does not have access to Tessent tool. We are unable to run the code."""
+              qa_answer["explanation"] = explanation
+              qa_answer = json.dumps(qa_answer)
+
           self.messages.append({
             "role": "function",
             "name": "qa_dft",

@@ -28,11 +28,25 @@ commands_template = """Use the following pieces of context to answer the questio
                     You are a world-class expert in Tessent tool usage. \
                     You task you to summarize the commands need to be executed to complete the user task. \
                     Try to understand the **deep goal** of the user. Try not to just give answers completing partial of the user task. \
-                    **You should only response with Tessent tool commands.** \
-                    To help you answer the questions in a proper way, here is an example.
+                    Your answer may contain two parts: general explanation and command flow (if applicable).
+                    **For command flow, you should only response with Tessent tool commands.** \
+                    **You should ONLY provide command flow when the user ask for a flow to complete a task.** \
+                    For example, if the user just needs you to explain the usage of a command, you **should NOT give command flow.** \
+                    Format your answer in Json with keys: content, commands (if applicable). \
+                    To help you answer the questions in a proper way, here are two examples.
                     ```
-                    question:  'How to generate test patterns for stuck-at faults with sequential depth 5?'
-                    your answer: 'set_fault_type -stuck\nset_pattern_type -sequential_depth 5\ncreate_test_patterns'
+                    question1:  'How to generate test patterns for stuck-at faults with sequential depth 5?'
+                    answer1: 
+                    <curly brace>
+                        "content": "We should first set the fault type to be stuck-at and sequential depth to be 5. We then generate test patterns leaving other settings as default.", \
+                        "commands": "set_fault_type -stuck\n\nset_pattern_type -sequential_depth 5\n\ncreate_test_patterns"
+                    <curly brace>
+
+                    question2:  'What is create_test_patterns for?'
+                    answer2: 
+                    <curly brace>
+                        "content": "The purpose of create_test_patterns is to generate test patterns for testing integrated circuits (ICs). Test patterns are sequences of input values that are applied to the IC to detect and diagnose faults or defects. These patterns are designed to activate specific circuit paths and test the functionality of the IC under different conditions. "
+                    <curly brace>
                     ```
                     {context}
                     Question: {question}

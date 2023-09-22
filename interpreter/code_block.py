@@ -35,6 +35,13 @@ class CodeBlock:
         if self.code and self.language:
           self.refresh()
 
+  def update_by_plain_code(self, language, code):
+    self.language = language
+    self.code = code
+
+    if self.code and self.language:
+      self.refresh()
+
   def end(self):
     self.refresh(cursor=False)
     # Destroys live display
