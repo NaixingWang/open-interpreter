@@ -24,6 +24,8 @@ from .message_block import MessageBlock
 from .code_block import CodeBlock
 from .code_interpreter import CodeInterpreter
 from .get_hf_llm import get_hf_llm
+from .qa_langchain import QAEngine
+from .enum_qa import QuestionType
 from openai.error import RateLimitError 
 
 import os
@@ -50,7 +52,7 @@ except:
   pass
 
 # Function schema for gpt-4
-function_schema = {
+function_run_schema = {
   "name": "run_code",
   "description":
   "Executes code on the user's machine and returns the output",
@@ -69,6 +71,36 @@ function_schema = {
       }
     },
     "required": ["language", "code"]
+  },
+}
+
+#fucntion schema for calling qa function based on langchain.
+function_qa_schema = {
+  "name": "qa_dft",
+  "description":
+  "Answer the profetional questions related to integrated circuit (IC) design-for-test (DFT),\
+    Automatic Test Pattern Generation (ATPG), test compression, Logic Built-in-self-test (LBIST),\
+    Memory Built-in-self-test (MBIST), Diagnosis, Silicon yield analysis and \
+    Tessent (a series of electronic design automation (EDA) products in IC testing).",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "question": {
+        "type": "string",
+        "description":
+        "The summarized question related to IC testing. Should only contain infos related to IC testing.",
+      },
+      "category": {
+        "type": "string",
+        "description": "The category of the question. \
+          'ATPG_General' means that the question is a general question in ATPG field, such as term explanation.\
+          'Tessent_Commands' means that the question is about the usage of Tessent tool.\
+          'Tessent_DRC' means that the questions is about the Design Rule Checking (DRC) in Tessent tool, i.e. DRC rule explation, analysis and fixing.\
+          If you cannot determine which is the best match, put the question into 'ATPG_General' category.",
+        "enum": ["ATPG_General", "Tessent_Commands", "Tessent_DRC"]
+      }
+    },
+    "required": ["question", "category"]
   },
 }
 
@@ -102,12 +134,14 @@ class Interpreter:
   def __init__(self):
     self.messages = []
     self.temperature = 0.001
-    self.api_key = None
+    # self.api_key = None
+    self.api_key = "sk-2kQMqy6wpddlLNdmhPN56pZFwK9yJ2X45VvU54gEYW0t0bjT"
     self.auto_run = False
     self.local = False
     self.model = "gpt-4"
     self.debug_mode = False
-    self.api_base = None # Will set it to whatever OpenAI wants
+    # self.api_base = None # Will set it to whatever OpenAI wants
+    self.api_base = "https://api.chatanywhere.cn/v1"
     self.context_window = 2000 # For local models only
     self.max_tokens = 750 # For local models only
     # Azure OpenAI
@@ -133,6 +167,9 @@ class Interpreter:
     # gpt-4 is faster, smarter, can call functions, and is all-around easier to use.
     # This makes gpt-4 better aligned with Open Interpreters priority to be easy to use.
     self.llama_instance = None
+
+    # the persisted instance to solve qa_dft function
+    self.qa_engine = QAEngine(api_base=self.api_base, api_key=self.api_key)
 
   def cli(self):
     # The cli takes the current instance of Interpreter,
@@ -621,7 +658,7 @@ class Interpreter:
               response = litellm.completion(
                   f"azure/{self.azure_deployment_name}",
                   messages=messages,
-                  functions=[function_schema],
+                  functions=[function_run_schema, function_qa_schema],
                   temperature=self.temperature,
                   stream=True,
                   )
@@ -632,7 +669,7 @@ class Interpreter:
                   api_base=self.api_base,
                   model = "custom/" + self.model,
                   messages=messages,
-                  functions=[function_schema],
+                  functions=[function_run_schema, function_qa_schema],
                   stream=True,
                   temperature=self.temperature,
                 )
@@ -641,7 +678,7 @@ class Interpreter:
                 response = litellm.completion(
                   model=self.model,
                   messages=messages,
-                  functions=[function_schema],
+                  functions=[function_run_schema, function_qa_schema],
                   stream=True,
                   temperature=self.temperature,
                 )
@@ -771,7 +808,7 @@ class Interpreter:
 
     # Initialize message, function call trackers, and active block
     self.messages.append({})
-    in_function_call = False
+    in_run_code = False
     llama_function_call_finished = False
     self.active_block = None
 
@@ -796,6 +833,8 @@ class Interpreter:
       # Check if we're in a function call
       if not self.local:
         condition = "function_call" in self.messages[-1]
+        condition_run_code = (condition and (self.messages[-1]["function_call"]["name"] == "run_code"))
+        condition_qa_dft = (condition and (self.messages[-1]["function_call"]["name"] == "qa_dft"))
       elif self.local:
         # Since Code-Llama can't call functions, we just check if we're in a code block.
         # This simply returns true if the number of "```" in the message is odd.
@@ -805,13 +844,13 @@ class Interpreter:
           # If it hasn't made "content" yet, we're certainly not in a function call.
           condition = False
 
-      if condition:
+      if condition_run_code:
         # We are in a function call.
 
         # Check if we just entered a function call
-        if in_function_call == False:
+        if in_run_code == False:
 
-          # If so, end the last block,
+          # If so, end the last block, since the last active block should be MessageBlock
           self.end_active_block()
 
           # Print newline if it was just a code block or user message
@@ -824,7 +863,7 @@ class Interpreter:
           self.active_block = CodeBlock()
 
         # Remember we're in a function_call
-        in_function_call = True
+        in_run_code = True
 
         # Now let's parse the function's arguments:
 
@@ -881,11 +920,12 @@ class Interpreter:
 
             self.messages[-1]["function_call"]["parsed_arguments"] = arguments
 
-      else:
-        # We are not in a function call.
+      elif condition_qa_dft:
+        #TODO
+        #Add qa_dft function handling
 
-        # Check if we just left a function call
-        if in_function_call == True:
+        # Check if we just left a run code
+        if in_run_code == True:
 
           if self.local:
             # This is the same as when gpt-4 gives finish_reason as function_call.
@@ -893,7 +933,26 @@ class Interpreter:
             llama_function_call_finished = True
 
         # Remember we're not in a function_call
-        in_function_call = False
+        in_run_code = False
+
+        # If there's no active block,
+        if self.active_block == None:
+
+          # Create a message block
+          self.active_block = MessageBlock()
+      else:
+        # We are not in a function call.
+
+        # Check if we just left a function call
+        if in_run_code == True:
+
+          if self.local:
+            # This is the same as when gpt-4 gives finish_reason as function_call.
+            # We have just finished a code block, so now we should run it.
+            llama_function_call_finished = True
+
+        # Remember we're not in a function_call
+        in_run_code = False
 
         # If there's no active block,
         if self.active_block == None:
@@ -902,12 +961,20 @@ class Interpreter:
           self.active_block = MessageBlock()
 
       # Update active_block
-      self.active_block.update_from_message(self.messages[-1])
+      if (condition_qa_dft):
+        print_info = {
+          "content": "Em...Looks like this question is a professional question in IC testing.\n Give me some time to think..."
+        }
+        self.active_block.update_from_message(print_info)
+      else:
+        self.active_block.update_from_message(self.messages[-1])
 
       # Check if we're finished
-      if chunk["choices"][0]["finish_reason"] or llama_function_call_finished:
-        if chunk["choices"][
-            0]["finish_reason"] == "function_call" or llama_function_call_finished:
+      if not (chunk["choices"][0]["finish_reason"] or llama_function_call_finished):
+        continue
+
+      if chunk["choices"][0]["finish_reason"] == "function_call" or llama_function_call_finished:
+        if condition_run_code:
           # Time to call the function!
           # (Because this is Open Interpreter, we only have one function.)
 
@@ -995,18 +1062,41 @@ class Interpreter:
 
           # Go around again
           self.respond()
+        elif condition_qa_dft:
+          #TODO
+          #We will make it as cool as run_code
+          args = json.loads(self.messages[-1]["function_call"]["arguments"])
+          category = args.get("category")
+          # Convert a string to the corresponding enumeration member
+          if category in QuestionType.__members__:
+              category_enum = QuestionType[category]
+          else:
+              category_enum = QuestionType.Unknown
 
-        if chunk["choices"][0]["finish_reason"] != "function_call":
-          # Done!
-
-          # Code Llama likes to output "###" at the end of every message for some reason
-          if self.local and "content" in self.messages[-1]:
-            self.messages[-1]["content"] = self.messages[-1]["content"].strip().rstrip("#")
-            self.active_block.update_from_message(self.messages[-1])
-            time.sleep(0.1)
-
+          qa_answer = self.qa_engine.get_answer(
+              question=args.get("question"),
+              category=category_enum,
+          )
           self.active_block.end()
-          return
+          
+          self.messages.append({
+            "role": "function",
+            "name": "qa_dft",
+            "content": qa_answer
+          })
+          self.respond()
+
+      if chunk["choices"][0]["finish_reason"] != "function_call":
+        # Done!
+
+        # Code Llama likes to output "###" at the end of every message for some reason
+        if self.local and "content" in self.messages[-1]:
+          self.messages[-1]["content"] = self.messages[-1]["content"].strip().rstrip("#")
+          self.active_block.update_from_message(self.messages[-1])
+          time.sleep(0.1)
+
+        self.active_block.end()
+        return
 
   def _print_welcome_message(self):
     print("", Markdown("●"), "", Markdown(f"\nWelcome to **Open Interpreter**.\n"), "")
