@@ -81,7 +81,7 @@ function_qa_schema = {
   "Answer the profetional questions related to integrated circuit (IC) design-for-test (DFT),\
     Automatic Test Pattern Generation (ATPG), test compression, Logic Built-in-self-test (LBIST),\
     Memory Built-in-self-test (MBIST), Diagnosis, Silicon yield analysis and \
-    Tessent (a series of electronic design automation (EDA) products in IC testing).",
+    Tessent (a series of electronic design automation (EDA) tools in IC testing).",
   "parameters": {
     "type": "object",
     "properties": {
@@ -961,7 +961,7 @@ class Interpreter:
           self.active_block = MessageBlock()
 
       # Update active_block
-      if (condition_qa_dft):
+      if condition_qa_dft:
         print_info = {
           "content": "Em...Looks like this question is a professional question in IC testing.\n Give me some time to think..."
         }
@@ -1072,6 +1072,11 @@ class Interpreter:
               category_enum = QuestionType[category]
           else:
               category_enum = QuestionType.Unknown
+          
+          if self.debug_mode:
+            print("\n"+"Sending IC testing question to Q/A engine"+"\n")
+            print(f"Question: {args.get('question')} \n")
+            print("Type: " + str(category_enum) + "\n")
 
           qa_answer = self.qa_engine.get_answer(
               question=args.get("question"),
@@ -1079,6 +1084,10 @@ class Interpreter:
           )
           # end the message block
           self.active_block.end()
+
+          if self.debug_mode:
+            print("\n"+"Collecting IC testing answer from Q/A engine"+"\n")
+            print(f"Answer: {qa_answer} \n")
 
           if category == "Tessent_Commands":
             # Open a new code block to display the tessent commands

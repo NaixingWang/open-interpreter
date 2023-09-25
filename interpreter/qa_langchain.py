@@ -60,7 +60,9 @@ drc_template = """Use the following pieces of context to answer the question at 
                     {context}
                     Question: {question}
                     Helpful Answer:"""
-QA_CHAIN_PROMPTS = [PromptTemplate.from_template(atpg_template), PromptTemplate.from_template(commands_template), PromptTemplate.from_template(drc_template)]
+QA_CHAIN_PROMPTS = [PromptTemplate.from_template(atpg_template),
+                     PromptTemplate.from_template(commands_template), 
+                     PromptTemplate.from_template(drc_template)]
 
 class QAEngine:
     def __init__(self, api_base, api_key):
