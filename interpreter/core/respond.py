@@ -4,8 +4,14 @@ from ..utils.get_user_info_string import get_user_info_string
 from ..utils.display_markdown_message import display_markdown_message
 from ..rag.get_relevant_procedures import get_relevant_procedures
 from ..utils.truncate_output import truncate_output
+
+# import libs for dft related questions.
+from ..dft.enum_qa import QuestionType
+from ..dft.qa_langchain import QAEngine
+
 import traceback
 import litellm
+import json
 
 def respond(interpreter):
     """
@@ -141,6 +147,52 @@ def respond(interpreter):
                 interpreter.messages[-1]["output"] = output.strip()
 
             yield {"end_of_execution": True}
+
+        elif "category" in interpreter.messages[-1]:
+            # Need to answer question related to dft
+            category = interpreter.messages[-1]["category"]
+            question = interpreter.messages[-1]["question"]
+
+            # Yield a message, such that the user can stop qa looking up if they want to
+            try:
+                yield {"no_llm_message": f"Em...this is a {category} question.\n Give me some time to think...\n\n"}
+            except GeneratorExit:
+                # The user might exit here.
+                # We need to tell python what we (the generator) should do if they exit
+                break
+
+            if category in QuestionType.__members__:
+                category_enum = QuestionType[category]
+            else:
+                category_enum = QuestionType.Unknown
+            
+            if interpreter.debug_mode:
+                print("\n"+"Sending IC testing question to Q/A engine"+"\n")
+                print(f"Question: {question} \n")
+                print("Type: " + str(category_enum) + "\n")
+
+            qa_answer = interpreter.qa_engine.get_answer(
+                question=question,
+                category=category_enum,
+            )
+            if interpreter.debug_mode:
+                print("\n"+"Collecting IC testing answer from Q/A engine"+"\n")
+                print(f"Answer: {qa_answer} \n")
+
+            if (category == "Tessent_Commands"
+                and '"content": ' in qa_answer):
+                json_response = json.loads(qa_answer)
+                explanation = json_response.get("content")
+                qa_answer = {}
+                commands = json_response.get("commands")
+                if commands:
+                    explanation += f""" The corresponding commands ```{commands}``` was generated sucessfully by qa_dft function. However, we does not have access to Tessent tool. We are unable to run the code."""
+                qa_answer["explanation"] = explanation
+                qa_answer = json.dumps(qa_answer)
+            
+            yield {"qa_answer": qa_answer}
+
+
 
         else:
             # Doesn't want to run code. We're done

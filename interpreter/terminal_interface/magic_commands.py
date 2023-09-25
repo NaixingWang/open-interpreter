@@ -28,7 +28,7 @@ def handle_undo(self, arguments):
     for message in removed_messages:
       if 'content' in message and message['content'] != None:
         display_markdown_message(f"**Removed message:** `\"{message['content'][:30]}...\"`")
-      elif 'function_call' in message:
+      elif 'function_call' in message and message['function_call']['name'] == "execute":
         display_markdown_message(f"**Removed codeblock**") # TODO: Could add preview of code removed here.
     
     print("") # Aesthetics.

@@ -333,7 +333,7 @@ def messages_to_prompt(messages, model):
           for message in messages:
             formatted_messages += f"{message['role'].capitalize()}: {message['content']}\n"
 
-            if "function_call" in message and "parsed_arguments" in message['function_call']:
+            if "function_call" in message and message['function_call']['name'] == "execute" and "parsed_arguments" in message['function_call']:
                 if "code" in message['function_call']['parsed_arguments'] and "language" in message['function_call']['parsed_arguments']:
                     code = message['function_call']['parsed_arguments']["code"]
                     language = message['function_call']['parsed_arguments']["language"]
@@ -361,7 +361,7 @@ def messages_to_prompt(messages, model):
                     formatted_messages += content
 
                     # Add code
-                    if "function_call" in item and "parsed_arguments" in item['function_call']:
+                    if "function_call" in item and item['function_call']['name'] == "execute" and "parsed_arguments" in item['function_call']:
                         if "code" in item['function_call']['parsed_arguments'] and "language" in item['function_call']['parsed_arguments']:
                             code = item['function_call']['parsed_arguments']["code"]
                             language = item['function_call']['parsed_arguments']["language"]

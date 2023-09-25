@@ -3,9 +3,10 @@ from ..utils.merge_deltas import merge_deltas
 from ..utils.parse_partial_json import parse_partial_json
 from ..utils.convert_to_openai_messages import convert_to_openai_messages
 import tokentrim as tt
+import json
 
 
-function_schema = {
+function_schema_code = {
   "name": "execute",
   "description":
   "Executes code on the user's machine, **in the users local environment**, and returns the output",
@@ -24,6 +25,34 @@ function_schema = {
       }
     },
     "required": ["language", "code"]
+  },
+}
+function_schema_qa = {
+  "name": "qa_dft",
+  "description":
+  "Answer the profetional questions related to integrated circuit (IC) design-for-test (DFT),\
+    Automatic Test Pattern Generation (ATPG), test compression, Logic Built-in-self-test (LBIST),\
+    Memory Built-in-self-test (MBIST), Diagnosis, Silicon yield analysis and \
+    Tessent (a series of electronic design automation (EDA) tools in IC testing).",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "category": {
+        "type": "string",
+        "description": "The category of the question. \
+          'ATPG_General' means that the question is a general question in ATPG field, such as term explanation.\
+          'Tessent_Commands' means that the question is about the usage of Tessent tool.\
+          'Tessent_DRC' means that the questions is about the Design Rule Checking (DRC) in Tessent tool, i.e. DRC rule explation, analysis and fixing.\
+          If you cannot determine which is the best match, put the question into 'ATPG_General' category.",
+        "enum": ["ATPG_General", "Tessent_Commands", "Tessent_DRC"]
+      },
+      "question": {
+        "type": "string",
+        "description":
+        "The summarized question related to IC testing. Should only contain infos related to IC testing.",
+      }
+    },
+    "required": ["category", "question"]
   },
 }
 
@@ -57,7 +86,7 @@ def setup_openai_coding_llm(interpreter):
             'model': interpreter.model,
             'messages': messages,
             'stream': True,
-            'functions': [function_schema]
+            'functions': [function_schema_code, function_schema_qa]
         }
 
         # Optional inputs
@@ -81,6 +110,8 @@ def setup_openai_coding_llm(interpreter):
         accumulated_deltas = {}
         language = None
         code = ""
+        category = None
+        question = ""
 
         for chunk in response:
 
@@ -96,7 +127,8 @@ def setup_openai_coding_llm(interpreter):
             if "content" in delta and delta["content"]:
                 yield {"message": delta["content"]}
 
-            if ("function_call" in accumulated_deltas 
+            if ("function_call" in accumulated_deltas
+                and accumulated_deltas["function_call"]["name"] == "execute"
                 and "arguments" in accumulated_deltas["function_call"]):
 
                 arguments = accumulated_deltas["function_call"]["arguments"]
@@ -119,5 +151,26 @@ def setup_openai_coding_llm(interpreter):
                         # Yield the delta
                         if code_delta:
                           yield {"code": code_delta}
+
+            if ("function_call" in accumulated_deltas
+                and accumulated_deltas["function_call"]["name"] == "qa_dft"):
+                arguments = accumulated_deltas["function_call"]["arguments"]
+                arguments = parse_partial_json(arguments)
+                if arguments:
+                    if (category is None
+                        and "category" in arguments
+                        and "question" in arguments # <- This ensures we're *finished* typing language, as opposed to partially done
+                        and arguments["category"]):
+                        category = arguments["category"]
+                        yield {"category": category}
+                    
+                    if category is not None and "question" in arguments:
+                        # Calculate the delta (new characters only)
+                        question_delta = arguments["question"][len(question):]
+                        # Update the code
+                        question = arguments["question"]
+                        # Yield the delta
+                        if question_delta:
+                          yield {"question": question}
             
     return coding_llm

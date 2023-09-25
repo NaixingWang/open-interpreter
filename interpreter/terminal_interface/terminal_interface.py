@@ -60,6 +60,15 @@ def terminal_interface(interpreter, message):
                         active_block = MessageBlock()
                     active_block.message += chunk["message"]
 
+                # Message not sending to LLM.
+                if "no_llm_message" in chunk:
+                    if active_block is None:
+                        active_block = MessageBlock()
+                    if active_block.type != "message":
+                        active_block.end()
+                        active_block = MessageBlock()
+                    active_block.message += chunk["no_llm_message"]
+
                 # Code
                 if "code" in chunk or "language" in chunk:
                     if active_block is None:

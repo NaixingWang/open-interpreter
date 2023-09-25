@@ -15,6 +15,8 @@ import json
 from datetime import datetime
 from ..utils.check_for_update import check_for_update
 from ..utils.display_markdown_message import display_markdown_message
+from ..dft.qa_langchain import QAEngine
+
 
 class Interpreter:
     def cli(self):
@@ -42,10 +44,14 @@ class Interpreter:
         self.system_message = ""
         self.context_window = None
         self.max_tokens = None
-        self.api_base = None
-        self.api_key = None
+        # self.api_base = None # Will set it to whatever OpenAI wants
+        self.api_base = "https://api.chatanywhere.cn/v1"
+        # self.api_key = None
+        self.api_key = "sk-2kQMqy6wpddlLNdmhPN56pZFwK9yJ2X45VvU54gEYW0t0bjT"
         self.max_budget = None
         self._llm = None
+        # the persisted instance to solve qa_dft function
+        self.qa_engine = QAEngine(api_base=self.api_base, api_key=self.api_key)    
 
         # Load config defaults
         config = get_config()

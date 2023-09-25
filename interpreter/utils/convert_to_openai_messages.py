@@ -14,7 +14,7 @@ def convert_to_openai_messages(messages):
 
         if "code" in message:
             new_message["function_call"] = {
-                "name": "run_code",
+                "name": "execute",
                 "arguments": json.dumps({
                     "language": message["language"],
                     "code": message["code"]
@@ -27,6 +27,15 @@ def convert_to_openai_messages(messages):
                 }
             }
 
+        if "category" in message:
+            new_message["function_call"] = {
+                "name": "qa_dft",
+                "arguments": json.dumps({
+                    "question": message["question"],
+                    "category": message["category"]
+                }),
+            }
+
         new_messages.append(new_message)
 
         if "output" in message:
@@ -34,8 +43,17 @@ def convert_to_openai_messages(messages):
 
             new_messages.append({
                 "role": "function",
-                "name": "run_code",
+                "name": "execute",
                 "content": output
+            })
+
+        if "qa_answer" in message:
+            qa_answer = message["qa_answer"]
+
+            new_messages.append({
+                "role": "function",
+                "name": "qa_dft",
+                "content": qa_answer
             })
 
     return new_messages
