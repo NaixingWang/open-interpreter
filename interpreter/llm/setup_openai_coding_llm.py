@@ -16,7 +16,7 @@ function_schema_code = {
       "language": {
         "type": "string",
         "description":
-        "The programming language (required parameter to the `execute` function)",
+        "The programming language (required)",
         "enum": ["python", "R", "shell", "applescript", "javascript", "html"]
       },
       "code": {
@@ -68,7 +68,15 @@ def setup_openai_coding_llm(interpreter):
         messages = convert_to_openai_messages(messages)
 
         # Add OpenAI's reccomended function message
-        messages[0]["content"] += "\n\nOnly use the function you have been provided with."
+        messages[0]["content"] += "\n\nOnly use the functions you have been provided with."
+        messages[0]["content"] += "\n\nSpecial Notes: \
+                                    For math questions, **never** trust yourself. You should always call proper package and use code to solve the math questions. \
+                                    For questions related to integrated circuit (IC) testing, including design-for-test (DFT), Automatic Test Pattern Generation (ATPG), \
+                                    test compression, Logic Built-in-self-test (LBIST), Memory Built-in-self-test (MBIST), Diagnosis, Silicon yield analysis and Tessent \
+                                    (a series of electronic design automation (EDA) tools in IC testing area), **ALWAYS** using qa_dft function to get answer. \
+                                    Normally, qa_dft gives you a clear answer. In case that the answer given by qa_dft is hard to understand. **ALWAYS** double check if the \
+                                    answer is crystal clear.If you think the answer is not clear. **Rephrase the user question and ask again using qa_dft function.** \
+                                    You are **NOT** a specialist in IC testing, do not try to answer the question by yourself. You can **ONLY** use qa_dft function to get answers."
 
         # Seperate out the system_message from messages
         # (We expect the first message to always be a system_message)
@@ -126,6 +134,11 @@ def setup_openai_coding_llm(interpreter):
 
             if "content" in delta and delta["content"]:
                 yield {"message": delta["content"]}
+
+            if "function_call" in accumulated_deltas:
+                print("##########################")
+                print(json.dumps(accumulated_deltas["function_call"]))
+                print("##########################")
 
             if ("function_call" in accumulated_deltas
                 and accumulated_deltas["function_call"]["name"] == "execute"
