@@ -82,7 +82,7 @@ def cli(interpreter):
     # Add arguments
     for arg in arguments:
         if arg["type"] == bool:
-            parser.add_argument(f'-{arg["nickname"]}', f'--{arg["name"]}', dest=arg["name"], help=arg["help_text"], action='store_true')
+            parser.add_argument(f'-{arg["nickname"]}', f'--{arg["name"]}', dest=arg["name"], help=arg["help_text"], action='store_true', default=None)
         else:
             parser.add_argument(f'-{arg["nickname"]}', f'--{arg["name"]}', dest=arg["name"], help=arg["help_text"], type=arg["type"])
 
@@ -111,6 +111,7 @@ def cli(interpreter):
             except FileNotFoundError:
                 # Fallback to using 'open' on macOS if 'xdg-open' is not available
                 subprocess.call(['open', config_path])
+        return
     
     # TODO Implement model explorer
     """
