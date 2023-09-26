@@ -56,6 +56,12 @@ arguments = [
         "type": int
     },
     {
+        "name": "max_retries",
+        "nickname": "mr",
+        "help_text": "optional maximum number of retries for the language model",
+        "type": int
+    },
+    {
         "name": "max_budget",
         "nickname": "b",
         "help_text": "optionally set the max budget (in USD) for your llm calls",

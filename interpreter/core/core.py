@@ -44,6 +44,7 @@ class Interpreter:
         self.system_message = ""
         self.context_window = None
         self.max_tokens = None
+        self.max_retries = 0
         # self.api_base = None # Will set it to whatever OpenAI wants
         self.api_base = "https://api.chatanywhere.cn/v1"
         # self.api_key = None

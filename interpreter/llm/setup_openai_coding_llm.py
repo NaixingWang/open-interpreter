@@ -39,7 +39,7 @@ function_schema_qa = {
     "properties": {
       "category": {
         "type": "string",
-        "description": "The category of the question. \
+        "description": "The category of the question (It should **ALWAYS** be the **FIRST** property given by you).) \
           'ATPG_General' means that the question is a general question in ATPG field, such as term explanation.\
           'Tessent_Commands' means that the question is about the usage of Tessent tool.\
           'Tessent_DRC' means that the questions is about the Design Rule Checking (DRC) in Tessent tool, i.e. DRC rule explation, analysis and fixing.\
@@ -50,9 +50,16 @@ function_schema_qa = {
         "type": "string",
         "description":
         "The summarized question related to IC testing. Should only contain infos related to IC testing.",
+      },
+      # This is a trick that allow we to know when the output of infos are finished.
+      "finished": {
+        "type": "string",
+        "description":
+        "Indicate whether the stream typing of other properties is finished (It should **ALWAYS** be the **LAST** property given by you).",
+        "enum": ["yes", "no"]
       }
     },
-    "required": ["category", "question"]
+    "required": ["category", "question", "finished"]
   },
 }
 
@@ -104,6 +111,8 @@ def setup_openai_coding_llm(interpreter):
             params["api_key"] = interpreter.api_key
         if interpreter.max_tokens:
             params["max_tokens"] = interpreter.max_tokens
+        if interpreter.max_retries:
+            params["max_retries"] = interpreter.max_retries
         if interpreter.temperature:
             params["temperature"] = interpreter.temperature
         
@@ -118,8 +127,9 @@ def setup_openai_coding_llm(interpreter):
         accumulated_deltas = {}
         language = None
         code = ""
-        category = None
-        question = ""
+        # category = None
+        # question = ""
+        finished = False
 
         for chunk in response:
 
@@ -135,20 +145,24 @@ def setup_openai_coding_llm(interpreter):
             if "content" in delta and delta["content"]:
                 yield {"message": delta["content"]}
 
-            if "function_call" in accumulated_deltas:
-                print("##########################")
-                print(json.dumps(accumulated_deltas["function_call"]))
-                print("##########################")
-
             if ("function_call" in accumulated_deltas
-                and accumulated_deltas["function_call"]["name"] == "execute"
                 and "arguments" in accumulated_deltas["function_call"]):
-
                 arguments = accumulated_deltas["function_call"]["arguments"]
                 arguments = parse_partial_json(arguments)
 
-                if arguments:
+                if not arguments:
+                    continue
 
+                func_name = accumulated_deltas["function_call"]["name"]
+
+                if func_name == "qa_dft":
+                    if not finished and "finished" in arguments:
+                        finished = True
+                        yield {"category": arguments["category"]}
+                        yield {"question": arguments["question"]}
+                        yield {"finished": "yes"}
+
+                elif func_name == "execute":
                     if (language is None
                         and "language" in arguments
                         and "code" in arguments # <- This ensures we're *finished* typing language, as opposed to partially done
@@ -164,26 +178,18 @@ def setup_openai_coding_llm(interpreter):
                         # Yield the delta
                         if code_delta:
                           yield {"code": code_delta}
-
-            if ("function_call" in accumulated_deltas
-                and accumulated_deltas["function_call"]["name"] == "qa_dft"):
-                arguments = accumulated_deltas["function_call"]["arguments"]
-                arguments = parse_partial_json(arguments)
-                if arguments:
-                    if (category is None
-                        and "category" in arguments
-                        and "question" in arguments # <- This ensures we're *finished* typing language, as opposed to partially done
-                        and arguments["category"]):
-                        category = arguments["category"]
-                        yield {"category": category}
-                    
-                    if category is not None and "question" in arguments:
-                        # Calculate the delta (new characters only)
-                        question_delta = arguments["question"][len(question):]
-                        # Update the code
-                        question = arguments["question"]
-                        # Yield the delta
-                        if question_delta:
-                          yield {"question": question}
+                else:
+                    # The following handles the functions hallucinated by LLM
+                    # if interpreter.debug_mode:
+                    # yield {"message": f"You have used a non-exist function named: {func_name}. You should avoid using it."}
+                    # yield {"no_llm_message": f"\n\nThe LLM hullucinates with a new function named: {func_name}.\n\n"}
+                    yield {"language": func_name}
+                    # Calculate the delta (new characters only)
+                    code_delta = arguments[len(code):]
+                    # Update the code
+                    code = arguments
+                    # Yield the delta
+                    if code_delta:
+                      yield {"code": code_delta}
             
     return coding_llm

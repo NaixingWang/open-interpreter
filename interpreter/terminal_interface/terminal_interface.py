@@ -69,6 +69,22 @@ def terminal_interface(interpreter, message):
                         active_block = MessageBlock()
                     active_block.message += chunk["no_llm_message"]
 
+                if "category" in chunk:
+                    if active_block is None:
+                        active_block = MessageBlock()
+                    if active_block.type != "message":
+                        active_block.end()
+                        active_block = MessageBlock()
+                    active_block.message += f"Em...this is related {chunk['category']}, and the questions is:\n\n"
+
+                if "question" in chunk:
+                    if active_block is None:
+                        active_block = MessageBlock()
+                    if active_block.type != "message":
+                        active_block.end()
+                        active_block = MessageBlock()
+                    active_block.message += f"{chunk['question']}\n\nPlease allow me some time to think...\n\n"
+
                 # Code
                 if "code" in chunk or "language" in chunk:
                     if active_block is None:

@@ -3,6 +3,12 @@ import re
 
 def parse_partial_json(s):
 
+    if not s:
+        return None
+    
+    if s[0] != "{":
+        return s
+
     # Attempt to parse the string as-is.
     try:
         return json.loads(s)

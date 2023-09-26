@@ -68,7 +68,7 @@ class QAEngine:
     def __init__(self, api_base, api_key):
         #The directory contains the chromadb for manual tessent_shell_ref.pdf
         self.embedding = OpenAIEmbeddings(openai_api_base=api_base, openai_api_key=api_key)
-        self.llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0, openai_api_base=api_base, openai_api_key=api_key)
+        self.llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0, openai_api_base=api_base, openai_api_key=api_key, max_retries=0)
 
         self.vectordbs = []
         self.vectordbs.append(Chroma(persist_directory="/home/shawn/chroma/db_atpg", embedding_function=self.embedding))

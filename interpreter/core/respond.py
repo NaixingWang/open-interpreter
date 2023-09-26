@@ -143,14 +143,6 @@ def respond(interpreter):
             category = interpreter.messages[-1]["category"]
             question = interpreter.messages[-1]["question"]
 
-            # Yield a message, such that the user can stop qa looking up if they want to
-            try:
-                yield {"no_llm_message": f"Em...this is a {category} question.\n Give me some time to think...\n\n"}
-            except GeneratorExit:
-                # The user might exit here.
-                # We need to tell python what we (the generator) should do if they exit
-                break
-
             if category in QuestionType.__members__:
                 category_enum = QuestionType[category]
             else:

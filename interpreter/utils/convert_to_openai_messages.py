@@ -31,8 +31,12 @@ def convert_to_openai_messages(messages):
             new_message["function_call"] = {
                 "name": "qa_dft",
                 "arguments": json.dumps({
+                    # The order is very important for LLM to follow the order you want.
+                    # If the order here is not consistent with the one in definition,
+                    # The LLM may be confused.
+                    "category": message["category"],
                     "question": message["question"],
-                    "category": message["category"]
+                    "finished": "yes",
                 }),
             }
 
