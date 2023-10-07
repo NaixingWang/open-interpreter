@@ -23,7 +23,7 @@ def setup_local_text_llm(interpreter):
     DEFAULT_CONTEXT_WINDOW = 2000
     DEFAULT_MAX_TOKENS = 1000
 
-    repo_id = interpreter.model.split("huggingface/")[1]
+    repo_id = interpreter.model.replace("huggingface/", "")
 
     if "TheBloke/CodeLlama-" not in repo_id:
       # ^ This means it was prob through the old --local, so we have already displayed this message.
@@ -265,7 +265,6 @@ def setup_local_text_llm(interpreter):
         else:
             max_tokens = DEFAULT_MAX_TOKENS
         
-
         messages = tt.trim(
             messages,
             max_tokens=(context_window-max_tokens-25),

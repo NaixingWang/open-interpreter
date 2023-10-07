@@ -32,6 +32,7 @@ class Interpreter:
         self.auto_run = False
         self.debug_mode = False
         self.max_output = 2000
+        self.safe_mode = "off"
 
         # Conversation history
         self.conversation_history = True
@@ -100,11 +101,11 @@ class Interpreter:
             self.messages.append({"role": "user", "message": message})
             yield from self._respond()
 
-            # Save conversation
+            # Save conversation if we've turned conversation_history on
             if self.conversation_history:
 
                 # If it's the first message, set the conversation name
-                if len([m for m in self.messages if m["role"] == "user"]) == 1:
+                if not self.conversation_filename:
 
                     first_few_words = "_".join(self.messages[0]["message"][:25].split(" ")[:-1])
                     for char in "<>:\"/\\|?*!": # Invalid characters for filenames
